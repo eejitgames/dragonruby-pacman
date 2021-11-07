@@ -17,7 +17,7 @@ class PacMan
     [ 10, 10, 10, 10, 10, 16,  0, 21, 23,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 21, 23,  0, 24, 10, 10, 10, 10, 10 ],
     [ 10, 10, 10, 10, 10, 16,  0, 21, 23,  0, 37, 18, 40, 43, 43, 41, 18, 39,  0, 21, 23,  0, 24, 10, 10, 10, 10, 10 ],
     [ 12, 12, 12, 12, 12, 20,  0, 22, 20,  0, 24, 10, 10, 10, 10, 10, 10, 16,  0, 22, 20,  0, 22, 12, 12, 12, 12, 12 ],
-    [  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 24, 10, 10, 10, 10, 10, 10, 16,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 ],
+    [ 10,  0,  0,  0,  0,  0,  0,  0,  0,  0, 24, 10, 10, 10, 10, 10, 10, 16,  0,  0,  0,  0,  0,  0,  0,  0,  0, 10 ],
     [ 18, 18, 18, 18, 18, 19,  0, 26, 19,  0, 24, 10, 10, 10, 10, 10, 10, 16,  0, 26, 19,  0, 26, 18, 18, 18, 18, 18 ],
     [ 10, 10, 10, 10, 10, 16,  0, 21, 23,  0, 38, 12, 12, 12, 12, 12, 12, 42,  0, 21, 23,  0, 24, 10, 10, 10, 10, 10 ],
     [ 10, 10, 10, 10, 10, 16,  0, 21, 23,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 21, 23,  0, 24, 10, 10, 10, 10, 10 ],
@@ -35,35 +35,95 @@ class PacMan
     [ 16,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 24 ],
     [ 17, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 25 ],        
   ].reverse
+    @pacman ||= {
+      lives: 3,
+      score: 0,
+      x: 13,
+      y: 7,
+      modx: 0,
+      mody: 0,
+      dx: 8,
+      dy: 0,
+      dir: 4 # 1 up, 2 right, 3 down, 4 left
+    }
+    if @args.tick_count.zero? or inputs.keyboard.key_down.r
+      maze_rt
+    end
   end
 
   def draw_background
     outputs.background_color = [ 9, 9, 9 ]
   end
 
-  def draw_sprite x, y, n
+  def maze_rt
     size = 16
-    outputs.sprites << { x: (x + 26) * size, y: (y + 6) * size, w: size, h: size, path: "sprites/maze-parts/#{n}.png" }
+    maze = []
+    31.times do |y|
+      28.times do |x|
+        maze << { x: (x + 26) * size, y: (y + 6) * size, w: size, h: size, path: "sprites/maze-parts/#{@maze[y][x]}.png" }
+      end
+    end
+    @args.render_target(:maze).sprites << maze
   end
 
   def draw_maze
-    31.times do |y|
-      28.times do |x|
-        draw_sprite x, y, @maze[y][x]
-      end
-    end      
+    outputs.primitives << { x: 0, y: 0, w: 1280, h: 720, path: :maze }.sprite!
+  end
+
+  def draw_pacman
+      outputs.primitives << {
+        x: ((@pacman[:x] + 26)* 16) - 8 + @pacman[:dx],
+        y: ((@pacman[:y] + 6 )* 16) - 8 + @pacman[:dy],
+        w: 32,
+        h: 32,
+        path: "sprites/circle/yellow.png",
+        angle: 180 - (@pacman.dir * 90),
+        angle_anchor_x: 0.5,
+        angle_anchor_y: 0.5,
+  }.sprite!
+  end
+
+  def update_pacman_dir x, y, dir, dx, dy
+    @pacman[:modx] = x
+    @pacman[:mody] = y
+    @pacman[:dir] = dir
+    @pacman[:dx] = dx
+    @pacman[:dy] = dy
+  end
+
+  def check_movement
+    if inputs.up and @maze[@pacman[:y] + 1][@pacman[:x]] == 0
+      update_pacman_dir 0, 1, 1, 0, 0
+    elsif inputs.down and @maze[@pacman[:y] - 1][@pacman[:x]] == 0
+      update_pacman_dir 0, -1, 3, 0, 0
+    end
+
+    if inputs.left and @maze[@pacman[:y]][@pacman[:x] - 1] == 0
+      update_pacman_dir -1, 0, 4, 0, 0
+    elsif inputs.right and @maze[@pacman[:y]][@pacman[:x] + 1] == 0
+      update_pacman_dir 1, 0, 2, 0, 0
+    end
+
+    unless @maze[@pacman[:y] + @pacman[:mody]][@pacman[:x] + @pacman[:modx]] == 0
+      @pacman[:modx] = 0
+      @pacman[:mody] = 0
+    end
+
+    @pacman[:x] += @pacman[:modx]
+    @pacman[:y] += @pacman[:mody]
   end
 
   def tick
     defaults
     draw_background
     draw_maze
+    draw_pacman
+    check_movement
   end
 end
 
 def tick args
   if args.tick_count.zero?
-    puts "set $game to nil"
     $game = nil
   end
   $game ||= PacMan.new
