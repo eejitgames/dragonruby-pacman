@@ -40,15 +40,13 @@ class PacMan
       score: 0,
       x: 13,
       y: 7,
-      modx: 0,
-      mody: 0,
       dx: 8,
       dy: 0,
-      dir: 4 # 1 up, 2 right, 3 down, 4 left
+      dir: 0, # 1 up, 2 right, 3 down, 4 left (0 for stationary until a key is pressed)
+      speed: 2
     }
-    if @args.tick_count.zero? or inputs.keyboard.key_down.r
-      maze_rt
-    end
+    maze_rt if @args.tick_count.zero? or inputs.keyboard.key_down.r # redraw if targets get messed up
+    $gtk.reset if inputs.keyboard.key_down.space # for quick testing
   end
 
   def draw_background
@@ -77,40 +75,102 @@ class PacMan
         w: 32,
         h: 32,
         path: "sprites/circle/yellow.png",
-        angle: 180 - (@pacman.dir * 90),
-        angle_anchor_x: 0.5,
-        angle_anchor_y: 0.5,
+        angle: 180 - (@pacman.dir * 90)
   }.sprite!
   end
 
-  def update_pacman_dir x, y, dir, dx, dy
-    @pacman[:modx] = x
-    @pacman[:mody] = y
+  def update_pacman_dir x, y, dir
     @pacman[:dir] = dir
+    dx = @pacman[:dx]
+    dy = @pacman[:dy]
+    nextmove = @maze[@pacman[:y] + y][@pacman[:x] + x]
+    case dir
+      when 1
+        if dy == 0 && nextmove != 0
+          @pacman[:dx] = dx
+          @pacman[:dy] = dy
+          return
+        end
+        dy += @pacman[:speed] if dy < 16
+        dy = 0 if dy > 15
+        dy = 0 if dy > 0 && nextmove != 0
+        if dy > 6 && nextmove == 0
+          @pacman[:y] += y
+          dy = -6
+        end
+      when 2
+        if dx == 0 && nextmove != 0
+          @pacman[:dx] = dx
+          @pacman[:dy] = dy
+          return
+        end
+        dx += @pacman[:speed] if dx < 16
+        dx = 0 if dx > 15
+        dx = 0 if dx > 0 && nextmove != 0
+        if dx > 6 && nextmove == 0
+          @pacman[:x] += x
+          dx = -6
+        end
+      when 3
+        if dy == 0 && nextmove != 0
+          @pacman[:dx] = dx
+          @pacman[:dy] = dy
+          return
+        end
+        dy -= @pacman[:speed] if dy > -16
+        dy = 0 if dy < -15
+        dy = 0 if dy < 0 && nextmove != 0
+        if dy < -6 && nextmove == 0
+          @pacman[:y] += y
+          dy = 6
+        end
+      when 4
+        if dx == 0 && nextmove != 0
+          @pacman[:dx] = dx
+          @pacman[:dy] = dy
+          return
+        end
+        dx -= @pacman[:speed] if dx > -16
+        dx = 0 if dx < -15
+        dx = 0 if dx < 0 && nextmove != 0
+        if dx < -6 && nextmove == 0
+          @pacman[:x] += x
+          dx = 6
+        end
+    end
     @pacman[:dx] = dx
     @pacman[:dy] = dy
   end
 
-  def check_movement
-    if inputs.up and @maze[@pacman[:y] + 1][@pacman[:x]] == 0
-      update_pacman_dir 0, 1, 1, 0, 0
-    elsif inputs.down and @maze[@pacman[:y] - 1][@pacman[:x]] == 0
-      update_pacman_dir 0, -1, 3, 0, 0
+  def draw_hitbox
+    outputs.primitives << [ ((@pacman[:x] + 26)* 16), ((@pacman[:y] + 6 )* 16), 16, 16, 255, 255, 255 ].border
+  end
+
+  def check_movement # 1 up, 2 right, 3 down, 4 left
+    if @pacman[:dx] == 0 && @maze[@pacman[:y] + 1][@pacman[:x]] == 0 && inputs.up
+      update_pacman_dir 0, 1, 1
+      return
+    elsif @pacman[:dy] == 0 && @maze[@pacman[:y]][@pacman[:x] + 1] == 0 && inputs.right
+      update_pacman_dir 1, 0, 2
+      return
+    elsif @pacman[:dx] == 0 && @maze[@pacman[:y] - 1][@pacman[:x]] == 0 && inputs.down
+      update_pacman_dir 0, -1, 3
+      return
+    elsif @pacman[:dy] == 0 && @maze[@pacman[:y]][@pacman[:x] - 1] == 0 && inputs.left
+      update_pacman_dir -1, 0, 4
+      return
     end
 
-    if inputs.left and @maze[@pacman[:y]][@pacman[:x] - 1] == 0
-      update_pacman_dir -1, 0, 4, 0, 0
-    elsif inputs.right and @maze[@pacman[:y]][@pacman[:x] + 1] == 0
-      update_pacman_dir 1, 0, 2, 0, 0
+    case @pacman[:dir]
+      when 1
+        update_pacman_dir 0, 1, 1
+      when 2
+        update_pacman_dir 1, 0, 2
+      when 3
+        update_pacman_dir 0, -1, 3
+      when 4
+        update_pacman_dir -1, 0, 4
     end
-
-    unless @maze[@pacman[:y] + @pacman[:mody]][@pacman[:x] + @pacman[:modx]] == 0
-      @pacman[:modx] = 0
-      @pacman[:mody] = 0
-    end
-
-    @pacman[:x] += @pacman[:modx]
-    @pacman[:y] += @pacman[:mody]
   end
 
   def tick
@@ -118,6 +178,7 @@ class PacMan
     draw_background
     draw_maze
     draw_pacman
+    draw_hitbox
     check_movement
   end
 end
