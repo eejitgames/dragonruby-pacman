@@ -43,7 +43,7 @@ class PacMan
       dx: 8,
       dy: 0,
       dir: 0, # 1 up, 2 right, 3 down, 4 left (0 for stationary until a key is pressed)
-      speed: 2
+      speed: 4
     }
     maze_rt if @args.tick_count.zero? or inputs.keyboard.key_down.r # redraw if targets get messed up
     $gtk.reset if inputs.keyboard.key_down.space # for quick testing
@@ -54,14 +54,7 @@ class PacMan
   end
 
   def maze_rt
-    size = 16
-    maze = []
-    31.times do |y|
-      28.times do |x|
-        maze << { x: (x + 26) * size, y: (y + 6) * size, w: size, h: size, path: "sprites/maze-parts/#{@maze[y][x]}.png" }
-      end
-    end
-    @args.render_target(:maze).sprites << maze
+    @args.render_target(:maze).sprites << { x: 416, y: 96, w: 448, h: 496, path: 'sprites/maze/DragonRubyPacMan.png' }
   end
 
   def draw_maze
@@ -79,63 +72,57 @@ class PacMan
   }.sprite!
   end
 
-  def update_pacman_dir x, y, dir
-    @pacman[:dir] = dir
+  def update_pacman
     dx = @pacman[:dx]
     dy = @pacman[:dy]
-    nextmove = @maze[@pacman[:y] + y][@pacman[:x] + x]
-    case dir
+    case @pacman[:dir]
       when 1
+        nextmove = @maze[@pacman[:y] + 1][@pacman[:x]]
         if dy == 0 && nextmove != 0
-          @pacman[:dx] = dx
-          @pacman[:dy] = dy
           return
         end
         dy += @pacman[:speed] if dy < 16
         dy = 0 if dy > 15
         dy = 0 if dy > 0 && nextmove != 0
-        if dy > 6 && nextmove == 0
-          @pacman[:y] += y
-          dy = -6
+        if dy > 8 && nextmove == 0
+          @pacman[:y] += 1
+          dy = -8
         end
       when 2
+        nextmove = @maze[@pacman[:y]][@pacman[:x] + 1]
         if dx == 0 && nextmove != 0
-          @pacman[:dx] = dx
-          @pacman[:dy] = dy
           return
         end
         dx += @pacman[:speed] if dx < 16
         dx = 0 if dx > 15
         dx = 0 if dx > 0 && nextmove != 0
-        if dx > 6 && nextmove == 0
-          @pacman[:x] += x
-          dx = -6
+        if dx > 8 && nextmove == 0
+          @pacman[:x] += 1
+          dx = -8
         end
       when 3
+        nextmove = @maze[@pacman[:y] -1 ][@pacman[:x]]
         if dy == 0 && nextmove != 0
-          @pacman[:dx] = dx
-          @pacman[:dy] = dy
           return
         end
         dy -= @pacman[:speed] if dy > -16
         dy = 0 if dy < -15
         dy = 0 if dy < 0 && nextmove != 0
-        if dy < -6 && nextmove == 0
-          @pacman[:y] += y
-          dy = 6
+        if dy < -8 && nextmove == 0
+          @pacman[:y] += -1
+          dy = 8
         end
       when 4
+        nextmove = @maze[@pacman[:y]][@pacman[:x] -1 ]
         if dx == 0 && nextmove != 0
-          @pacman[:dx] = dx
-          @pacman[:dy] = dy
           return
         end
         dx -= @pacman[:speed] if dx > -16
         dx = 0 if dx < -15
         dx = 0 if dx < 0 && nextmove != 0
-        if dx < -6 && nextmove == 0
-          @pacman[:x] += x
-          dx = 6
+        if dx < -8 && nextmove == 0
+          @pacman[:x] += -1
+          dx = 8
         end
     end
     @pacman[:dx] = dx
@@ -146,30 +133,15 @@ class PacMan
     outputs.primitives << [ ((@pacman[:x] + 26)* 16), ((@pacman[:y] + 6 )* 16), 16, 16, 255, 255, 255 ].border
   end
 
-  def check_movement # 1 up, 2 right, 3 down, 4 left
+  def player_input
     if @pacman[:dx] == 0 && @maze[@pacman[:y] + 1][@pacman[:x]] == 0 && inputs.up
-      update_pacman_dir 0, 1, 1
-      return
+      @pacman[:dir] = 1
     elsif @pacman[:dy] == 0 && @maze[@pacman[:y]][@pacman[:x] + 1] == 0 && inputs.right
-      update_pacman_dir 1, 0, 2
-      return
+      @pacman[:dir] = 2
     elsif @pacman[:dx] == 0 && @maze[@pacman[:y] - 1][@pacman[:x]] == 0 && inputs.down
-      update_pacman_dir 0, -1, 3
-      return
+      @pacman[:dir] = 3
     elsif @pacman[:dy] == 0 && @maze[@pacman[:y]][@pacman[:x] - 1] == 0 && inputs.left
-      update_pacman_dir -1, 0, 4
-      return
-    end
-
-    case @pacman[:dir]
-      when 1
-        update_pacman_dir 0, 1, 1
-      when 2
-        update_pacman_dir 1, 0, 2
-      when 3
-        update_pacman_dir 0, -1, 3
-      when 4
-        update_pacman_dir -1, 0, 4
+      @pacman[:dir] = 4
     end
   end
 
@@ -179,7 +151,8 @@ class PacMan
     draw_maze
     draw_pacman
     draw_hitbox
-    check_movement
+    player_input
+    update_pacman
   end
 end
 
